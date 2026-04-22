@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify Jam - Voting</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+<body data-page="voting">
+<nav id="sidebar">
+  <div class="sidebar-logo"><span>♫</span><span class="logo-text">Spotify Jam</span></div>
+
+  <div class="nav-section">
+    <div class="nav-label">Browse</div>
+    <a class="nav-item " href="../index.html"><span class="nav-icon">⌂</span><span class="nav-text">Home</span></a>
+    <a class="nav-item " href="search.html"><span class="nav-icon">⊙</span><span class="nav-text">Search</span></a>
+    <a class="nav-item " href="library.html"><span class="nav-icon">☰</span><span class="nav-text">Library</span></a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Jam</div>
+    <a class="nav-item " href="jam.html"><span class="nav-icon">✦</span><span class="nav-text">Jam Session</span></a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Group Modes</div>
+    <a class="nav-item active" href="voting.html"><span class="nav-icon">◉</span><span class="nav-text">Voting Selection</span></a>
+    <a class="nav-item " href="turnbased.html"><span class="nav-icon">↻</span><span class="nav-text">Turn-Based</span></a>
+    <a class="nav-item " href="skipvote.html"><span class="nav-icon">»</span><span class="nav-text">Skip Voting</span></a>
+  </div>
+</nav>
+<main id="main">
+<div class="page" id="page-voting">
+  <div class="voting-banner">
+    <div class="page-title" style="color:var(--green)">◉ Voting-Based Selection</div>
+    <div class="page-sub">Everyone suggests · group votes · winner plays automatically</div>
+  </div>
+  <div class="two-col" style="align-items:start">
+    <div>
+      <div class="info-box" style="margin-bottom:16px">
+        <div class="section-title" style="margin-bottom:14px">Suggest a Song</div>
+        <div class="input-group">
+          <div class="input-label">Song Title</div>
+          <input class="text-input" id="v-title" placeholder="e.g. Blinding Lights" />
+        </div>
+        <div class="input-group">
+          <div class="input-label">Artist</div>
+          <input class="text-input" id="v-artist" placeholder="e.g. The Weeknd" />
+        </div>
+        <button class="btn btn-green" onclick="suggestSong()" style="margin-top:6px">+ Suggest Song</button>
+      </div>
+      <div class="section-title" style="margin-bottom:10px">Quick Add from Library</div>
+      <div id="quick-add-list"></div>
+    </div>
+    <div>
+      <div class="section-header">
+        <div class="section-title">Live Votes</div>
+        <div class="timer-badge" id="vote-timer">30s</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-green btn-sm" onclick="startVoting()">▶ Start Vote</button>
+        <button class="btn btn-red btn-sm" onclick="endVoting()">■ End Vote</button>
+      </div>
+      <div id="vote-list"></div>
+      <div class="winner-banner" id="vote-winner">
+        <div class="winner-label">🏆 Winner</div>
+        <div class="winner-title" id="winner-title"></div>
+        <div class="winner-artist" id="winner-artist"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+<div id="player">
+  <div class="player-song">
+    <div class="player-title" id="now-title">No song playing</div>
+    <div class="player-artist" id="now-artist">—</div>
+  </div>
+  <div class="player-controls">
+    <div class="ctrl-btns">
+      <button class="ctrl-btn" title="Previous">⏮</button>
+      <button class="ctrl-btn play-btn" id="play-btn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" title="Next" onclick="nextTrack()">⏭</button>
+    </div>
+    <div class="progress-row">
+      <span class="time-lbl" id="elapsed">0:00</span>
+      <div class="progress-bar-wrap" onclick="seekTo(event)">
+        <div class="progress-fill" id="prog-fill" style="width:0%"></div>
+      </div>
+      <span class="time-lbl" id="duration">0:00</span>
+    </div>
+  </div>
+  <div class="player-right">
+    <div class="jam-badge" id="jam-badge">
+      <div class="jam-dot"></div>
+      <span id="jam-badge-text"></span>
+    </div>
+    <div class="vol-row">🔊 <input type="range" min="0" max="100" value="70" id="vol-slider"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="../js/main.js"></script>
+</body>
+</html>
