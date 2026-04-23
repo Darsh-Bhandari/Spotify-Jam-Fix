@@ -37,30 +37,51 @@
     <div class="page-sub">Vote as a group to skip · automatic skip at threshold</div>
   </div>
   <div class="two-col" style="align-items:start">
-    <div>
-      <div class="now-playing-card">
-        <div class="np-art" id="skip-art" style="background:#1db954">♪</div>
-        <div class="np-title" id="skip-title">Select a song</div>
-        <div class="np-artist" id="skip-artist">—</div>
-      </div>
-      <div class="skip-meter-wrap">
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-          <div class="skip-count"><span id="skip-votes">0</span> <span>/ <span id="skip-threshold">3</span> votes to skip</span></div>
+  <!-- LEFT COLUMN -->
+  <div>
+    <div class="now-playing-card">
+      <div class="np-art" id="skip-art" style="background:#1db954">♪</div>
+      <div class="np-title" id="skip-title">Select a song</div>
+      <div class="np-artist" id="skip-artist">—</div>
+    </div>
+
+    <div class="skip-meter-wrap">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+        <div class="skip-count">
+          <span id="skip-votes">0</span>
+          <span>/ <span id="skip-threshold">3</span> votes to skip</span>
         </div>
-        <div class="skip-meter-bar"><div class="skip-meter-fill" id="skip-fill" style="width:0%"></div></div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:14px">
-        <button class="btn btn-red" id="skip-btn" onclick="castSkipVote()">⏭ Vote to Skip</button>
-        <button class="btn btn-dark btn-sm" onclick="simulateGroupVote()">Simulate Group</button>
+      <div class="skip-meter-bar">
+        <div class="skip-meter-fill" id="skip-fill" style="width:0%"></div>
       </div>
     </div>
-    <div>
-      <div class="section-title" style="margin-bottom:12px">Listeners</div>
-      <div id="skip-listener-list"></div>
-      <div class="section-title" style="margin-top:24px;margin-bottom:12px">How It Works</div>
-      <div id="skip-rules"></div>
+
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-red" id="skip-btn" onclick="castSkipVote()">⏭ Vote to Skip</button>
+      <button class="btn btn-dark btn-sm" onclick="simulateGroupVote()">Simulate Group</button>
+    </div>
+
+    <!-- 🔍 SEARCH BAR -->
+    <div class="section" style="padding:20px 0 0">
+      <div class="search-input-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="skip-search-input" class="search-input" placeholder="Add songs to queue..." />
+      </div>
+      <div id="skip-search-results"></div>
     </div>
   </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+    <div class="section-title" style="margin-bottom:12px">Listeners</div>
+    <div id="skip-listener-list"></div>
+
+    <!-- 🔥 QUEUE (replaces "How It Works") -->
+    <div class="section-title" style="margin-top:24px;margin-bottom:12px">Up Next</div>
+    <div id="skip-queue"></div>
+  </div>
+</div>
 </div>
 </main>
 <div id="player">
