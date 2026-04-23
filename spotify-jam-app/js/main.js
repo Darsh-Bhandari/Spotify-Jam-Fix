@@ -50,6 +50,7 @@ let state = JSON.parse(localStorage.getItem('spotifyJamState') || 'null') || {
   skipVotes: 0,
   skipThreshold: 3,
   skipVotedMe: false,
+  skipVotesBy: [], // array of usernames for voters
   skipListeners: [],
 };
 let tickInterval = null;
@@ -80,12 +81,27 @@ function renderSongList(container, songs, opts={}){
 function playSong(idx){
   state.currentSong = SONGS[idx];
   state.playingIndex = idx;
+
   const [m,s]=state.currentSong.duration.split(':');
   state.durationSec = parseInt(m)*60+parseInt(s);
-  state.elapsed=0; state.progress=0; state.isPlaying=true;
-  startPlaying(); persist(); updatePlayerUI();
+
+  state.elapsed=0;
+  state.progress=0;
+  state.isPlaying=true;
+
+  startPlaying();
+  persist();
+
+  updatePlayerUI();
+  updateNowPlayingCard(); 
+  renderSkipQueue();
 }
-function addToQueue(idx){ state.queue.push(SONGS[idx]); persist(); showToast(`Added "${SONGS[idx].title}" to queue`); }
+function addToQueue(idx){
+  state.queue.push(SONGS[idx]);
+  persist();
+  renderSkipQueue(); // 🔥 update UI
+  showToast(`Added "${SONGS[idx].title}" to queue`);
+}
 function startPlaying(){
   state.isPlaying=true; clearInterval(tickInterval);
   tickInterval=setInterval(()=>{
@@ -98,19 +114,47 @@ function startPlaying(){
   updatePlayerUI();
 }
 function togglePlay(){
-  if(!state.currentSong){ playSong(0); return; }
-  state.isPlaying=!state.isPlaying;
-  if(state.isPlaying) startPlaying(); else clearInterval(tickInterval);
-  persist(); updatePlayerUI();
+  if(!state.currentSong){
+    if(state.queue.length){
+      nextTrack();
+    } else {
+      showToast('Queue is empty!');
+    }
+    return;
+  }
+
+  state.isPlaying = !state.isPlaying;
+
+  if(state.isPlaying) startPlaying();
+  else clearInterval(tickInterval);
+
+  persist();
+  updatePlayerUI();
 }
 function nextTrack(){
-  if(state.queue.length){
-    const s=state.queue.shift();
-    const idx=SONGS.findIndex(x=>x.title===s.title && x.artist===s.artist);
-    playSong(idx>=0?idx:0);
-  } else {
-    const next=(state.playingIndex+1)%SONGS.length; playSong(next);
+  if(!state.queue.length) {
+    state.currentSong = null;
+    state.isPlaying = false;
+    state.elapsed = 0;
+    state.progress = 0;
+
+    clearInterval(tickInterval);
+    persist();
+
+    updatePlayerUI();
+    updateNowPlayingCard(); // 🔥 add this
+    renderSkipQueue();
+    return;
   }
+
+  const nextSong = state.queue.shift();
+  const idx = SONGS.findIndex(x =>
+    x.title === nextSong.title && x.artist === nextSong.artist
+  );
+
+  playSong(idx >= 0 ? idx : 0);
+
+  renderSkipQueue();
 }
 function seekTo(e){
   if(!state.durationSec) return;
@@ -222,15 +266,117 @@ function turnPick(idx){ const u=state.turnUsers[state.turnIndex]; if(u!=='You'){
 function skipTurn(){ state.turnIndex=(state.turnIndex+1)%state.turnUsers.length; renderTurnOrder(); renderTurnQueue(); renderTurnLabel(); persist(); if(state.turnUsers[state.turnIndex]!=='You'){ setTimeout(()=>{ const u=state.turnUsers[state.turnIndex]; if(u==='You') return; const song=rand(SONGS); state.turnQueue.push({user:u,song}); state.queue.push(song); state.turnIndex=(state.turnIndex+1)%state.turnUsers.length; persist(); renderTurnOrder(); renderTurnQueue(); renderTurnLabel(); },2000); } }
 function initTurnBased(){ renderTurnOrder(); renderTurnQueue(); renderTurnLabel(); renderTurnSongs(); }
 
-function initSkipListeners(){ if(!state.skipListeners.length) state.skipListeners=shuffle(USERS).slice(0,5); persist(); }
-function renderSkipListeners(){ const el=document.getElementById('skip-listener-list'); if(!el) return; const avatarColors=['#1db954','#509BF5','#8D67AB','#E8115B','#FF6437']; el.innerHTML=state.skipListeners.map((u,i)=>{ const voted=u==='You'&&state.skipVotedMe; return `<div class="listener-row"><div class="listener-avatar" style="background:${voted?'var(--red)':avatarColors[i%avatarColors.length]};color:${voted?'#fff':'#000'}">${u[0]}</div><div class="listener-name">${u}</div><div class="listener-status ${voted?'status-skip':'status-listen'}">${voted?'⏭ Skip!':'♪ Listening'}</div></div>`; }).join(''); }
+function initSkipListeners(){ if(!state.skipVotesBy) state.skipVotesBy = []; if(!state.skipListeners.length) state.skipListeners=shuffle(USERS).slice(0,5); persist(); }
+function renderSkipListeners(){
+  const el = document.getElementById('skip-listener-list');
+  if(!el) return;
+
+  const avatarColors = ['#1db954','#509BF5','#8D67AB','#E8115B','#FF6437'];
+
+  el.innerHTML = state.skipListeners.map((u,i)=>{
+    const voted = state.skipVotesBy.includes(u);
+
+    return `
+      <div class="listener-row">
+        <div class="listener-avatar" style="background:${voted?'var(--red)':avatarColors[i%avatarColors.length]};color:${voted?'#fff':'#000'}">
+          ${u[0]}
+        </div>
+        <div class="listener-name">${u}</div>
+        <div class="listener-status ${voted?'status-skip':'status-listen'}">
+          ${voted?'⏭ Skip!':'♪ Listening'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 function renderSkipRules(){ const el=document.getElementById('skip-rules'); if(!el) return; const rules=[['⏭',`Need ${state.skipThreshold} votes to skip`],['↻','Auto-advances to next song'],['⟲','Vote resets for each new song'],['✕',"Can't undo your skip vote"],['◉',"Everyone's vote counts equally"]]; el.innerHTML=rules.map(([icon,txt])=>`<div class="rule-row"><div class="rule-icon">${icon}</div>${txt}</div>`).join(''); }
-function updateSkipMeter(){ const pct=Math.min(state.skipVotes/state.skipThreshold,1); document.getElementById('skip-fill').style.width=(pct*100)+'%'; document.getElementById('skip-votes').textContent=state.skipVotes; document.getElementById('skip-threshold').textContent=state.skipThreshold; }
-function castSkipVote(){ if(state.skipVotedMe){showToast('Already voted to skip!');return;} state.skipVotedMe=true; state.skipVotes++; const btn=document.getElementById('skip-btn'); btn.textContent='✓ Voted to Skip'; btn.disabled=true; btn.style.opacity='0.6'; persist(); updateSkipMeter(); renderSkipListeners(); checkSkipThreshold(); }
-function simulateGroupVote(){ const extra=Math.floor(1+Math.random()*state.skipThreshold); state.skipVotes=Math.min(state.skipVotes+extra,state.skipThreshold+1); persist(); updateSkipMeter(); checkSkipThreshold(); }
+function updateSkipMeter(){
+  state.skipThreshold = computeSkipThreshold();
+
+  const pct = Math.min(state.skipVotes / state.skipThreshold, 1);
+
+  document.getElementById('skip-fill').style.width = (pct * 100) + '%';
+  document.getElementById('skip-votes').textContent = state.skipVotes;
+  document.getElementById('skip-threshold').textContent = state.skipThreshold;
+}
+function castSkipVote(){
+  if(state.skipVotesBy.includes('You')){
+    showToast('Already voted to skip!');
+    return;
+  }
+
+  state.skipVotesBy.push('You');
+  state.skipVotes = state.skipVotesBy.length;
+  state.skipVotedMe = true;
+
+  const btn = document.getElementById('skip-btn');
+  btn.textContent = '✓ Voted to Skip';
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+
+  persist();
+  updateSkipMeter();
+  renderSkipListeners();
+  checkSkipThreshold();
+}
+function simulateGroupVote(){
+  const others = state.skipListeners.filter(u => u !== 'You');
+
+  // randomly pick some users who haven't voted yet
+  const notVoted = others.filter(u => !state.skipVotesBy.includes(u));
+
+  if(!notVoted.length) return;
+
+  const numVotes = Math.floor(1 + Math.random() * notVoted.length);
+
+  const selected = shuffle(notVoted).slice(0, numVotes);
+
+  state.skipVotesBy.push(...selected);
+  state.skipVotes = state.skipVotesBy.length;
+
+  persist();
+  updateSkipMeter();
+  renderSkipListeners();
+  checkSkipThreshold();
+}
 function checkSkipThreshold(){ if(state.skipVotes>=state.skipThreshold) setTimeout(doSkip,800); }
-function doSkip(){ const next=rand(SONGS); showToast('Group voted to skip → Playing next!'); state.skipVotes=0; state.skipVotedMe=false; const btn=document.getElementById('skip-btn'); if(btn){btn.textContent='⏭ Vote to Skip';btn.disabled=false;btn.style.opacity='1';} document.getElementById('skip-title').textContent=next.title; document.getElementById('skip-artist').textContent=next.artist; document.getElementById('skip-art').style.background=next.color||'#1db954'; persist(); updateSkipMeter(); renderSkipListeners(); const idx=SONGS.findIndex(s=>s.title===next.title); if(idx>=0) playSong(idx); }
-function initSkipPage(){ if(state.currentSong){ document.getElementById('skip-title').textContent=state.currentSong.title; document.getElementById('skip-artist').textContent=state.currentSong.artist; document.getElementById('skip-art').style.background=state.currentSong.color||'#1db954'; } const btn=document.getElementById('skip-btn'); if(btn && state.skipVotedMe){ btn.textContent='✓ Voted to Skip'; btn.disabled=true; btn.style.opacity='0.6'; } updateSkipMeter(); renderSkipListeners(); renderSkipRules(); }
+function doSkip(){
+  showToast('Group voted to skip → Playing next!');
+
+  state.skipVotes = 0;
+  state.skipVotesBy = []; // 🔥 CRITICAL FIX
+  state.skipVotedMe = false;
+
+  const btn = document.getElementById('skip-btn');
+  if(btn){
+    btn.textContent = '⏭ Vote to Skip';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+
+  persist();
+  updateSkipMeter();
+  renderSkipListeners();
+
+  nextTrack();
+}
+function initSkipPage(){
+  updateNowPlayingCard();
+
+  const btn = document.getElementById('skip-btn');
+  if(btn && state.skipVotedMe){
+    btn.textContent='✓ Voted to Skip';
+    btn.disabled=true;
+    btn.style.opacity='0.6';
+  }
+
+  updateSkipMeter();
+  renderSkipListeners();
+  renderSkipRules();
+
+  initSkipSearch();   // 🔍 NEW
+  renderSkipQueue();  // 📜 NEW
+}
 
 function initPage(){
   initSkipListeners();
@@ -247,3 +393,82 @@ function initPage(){
 }
 
 document.addEventListener('DOMContentLoaded', initPage);
+
+function renderSkipQueue(){
+  const el = document.getElementById('skip-queue');
+  if(!el) return;
+
+  if(!state.queue.length){
+    el.innerHTML = '<div class="empty-state">Queue is empty</div>';
+    return;
+  }
+
+  el.innerHTML = state.queue.map((s, i) => `
+    <div class="queue-track">
+      <div style="width:28px;height:28px;background:var(--bg-hover2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px">♪</div>
+      <div class="qt-info">
+        <div class="qt-title">${s.title}</div>
+        <div class="qt-user">${s.artist}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function initSkipSearch(){
+  const input = document.getElementById('skip-search-input');
+  const target = document.getElementById('skip-search-results');
+
+  if(!input) return;
+
+  input.addEventListener('input', function(){
+    const q = this.value.toLowerCase().trim();
+
+    if(!q){
+      target.innerHTML = '';
+      return;
+    }
+
+    const results = SONGS.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      s.artist.toLowerCase().includes(q)
+    );
+
+    if(results.length){
+      const container = document.createElement('div');
+      container.className = 'song-list';
+
+      renderSongList(container, results, { queueMode: true });
+
+      target.innerHTML = '';
+      target.appendChild(container);
+    } else {
+      target.innerHTML = '<div class="empty-state">No results found</div>';
+    }
+  });
+}
+
+function updateNowPlayingCard(){
+  const s = state.currentSong;
+
+  const titleEl = document.getElementById('skip-title');
+  const artistEl = document.getElementById('skip-artist');
+  const artEl = document.getElementById('skip-art');
+
+  if(!titleEl || !artistEl || !artEl) return;
+
+  if(!s){
+    titleEl.textContent = 'No song playing';
+    artistEl.textContent = '—';
+    artEl.style.background = '#1db954';
+    return;
+  }
+
+  titleEl.textContent = s.title;
+  artistEl.textContent = s.artist;
+  artEl.style.background = s.color || '#1db954';
+}
+
+function computeSkipThreshold(){
+  const total = state.skipListeners.length || 1;
+  return Math.floor(total / 2) + 1; // majority
+}
