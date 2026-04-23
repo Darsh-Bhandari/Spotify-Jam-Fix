@@ -36,18 +36,73 @@
     <div class="page-title" style="color:var(--blue)">↻ Turn-Based Selection</div>
     <div class="page-sub">Fair rotation · everyone gets a turn · shared queue</div>
   </div>
-  <div class="two-col" style="align-items:start">
+
+  <div class="section" style="padding-top:18px;padding-bottom:0">
+    <div class="info-box">
+      <div class="section-header" style="margin-bottom:8px">
+        <div>
+          <div class="info-box-title">Current Round</div>
+          <div style="font-size:14px;color:var(--gray);line-height:1.5">
+            Each person gets one turn to add a song. After a pick or skip, the turn moves to the next listener.
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-dark btn-sm" onclick="shuffleTurnOrder()">Shuffle Order</button>
+          <button class="btn btn-dark btn-sm" onclick="resetTurnMode()">Reset Round</button>
+        </div>
+      </div>
+
+      <div class="turn-mini-stats">
+        <div class="rule-row" style="margin-bottom:0">
+          <div class="rule-icon">👤</div>
+          <div><b id="turn-current-picker">You</b><br><span style="font-size:12px;color:var(--gray)">Current picker</span></div>
+        </div>
+        <div class="rule-row" style="margin-bottom:0">
+          <div class="rule-icon">↻</div>
+          <div><b id="turn-progress-text">1 of 4</b><br><span style="font-size:12px;color:var(--gray)">Turn progress</span></div>
+        </div>
+        <div class="rule-row" style="margin-bottom:0">
+          <div class="rule-icon">☰</div>
+          <div><b id="turn-queue-count">0</b><br><span style="font-size:12px;color:var(--gray)">Songs queued</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col" style="align-items:start;padding-top:18px">
     <div>
       <div class="section-title" style="margin-bottom:12px">Turn Order</div>
       <div id="turn-order"></div>
+
       <button class="btn btn-dark btn-sm" onclick="skipTurn()" style="margin-top:12px">→ Skip My Turn</button>
+
+      <div class="info-box" style="margin-top:16px">
+        <div class="input-label">Add Listener</div>
+        <div class="join-row" style="margin-top:8px">
+          <input class="join-input" id="turn-new-member" placeholder="Friend name...">
+          <button class="btn btn-dark btn-sm" onclick="addTurnMember()">Add</button>
+        </div>
+      </div>
+
       <div class="section-title" style="margin-top:24px;margin-bottom:12px">Queue</div>
       <div id="turn-queue-display"></div>
     </div>
+
     <div>
       <div class="section-title" id="turn-pick-label" style="margin-bottom:12px;color:var(--gold)"></div>
       <div class="section-title" style="margin-bottom:10px;font-size:14px;color:var(--gray)">Choose a Song</div>
+
+      <div class="search-input-wrap" style="margin-bottom:14px">
+        <span class="search-icon">⊙</span>
+        <input class="search-input" id="turn-search" type="text" placeholder="Search songs..." oninput="renderTurnSongs()">
+      </div>
+
       <div id="turn-song-list"></div>
+
+      <div class="info-box" style="margin-top:20px">
+        <div class="section-title" style="margin-bottom:12px">How It Works</div>
+        <div id="turn-rules"></div>
+      </div>
     </div>
   </div>
 </div>
