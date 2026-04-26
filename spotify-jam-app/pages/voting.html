@@ -6,6 +6,51 @@
 <title>Spotify Jam - Voting</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/styles.css">
+<style>
+.listeners-section {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border-radius: 10px;
+}
+.listeners-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 12px;
+}
+.listeners-avatars {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.l-avatar-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.l-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  border: 3px solid transparent;
+  transition: border-color 0.25s ease;
+  cursor: default;
+}
+.l-avatar.voted { border-color: #1db954; }
+.l-name { font-size: 10px; color: var(--gray); }
+.l-count { font-size: 13px; color: var(--gray); margin-left: 4px; align-self: center; }
+.listeners-hint { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+/* Vote progress bars */
+.vote-card { position: relative; padding-bottom: 10px; }
+.vote-bar-wrap {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: var(--bg-hover2); border-radius: 0 0 8px 8px; overflow: hidden;
+}
+.vote-bar-fill {
+  height: 100%; background: var(--green);
+  border-radius: 0 0 8px 8px; transition: width 0.4s ease;
+}
+/* Leading card highlight */
+.vote-card.leading {
+  background: rgba(29,185,84,0.08);
+  border-left: 3px solid var(--green);
+}
+</style>
 </head>
 <body data-page="voting">
 <nav id="sidebar">
@@ -52,7 +97,15 @@
       </div>
       <div class="section-title" style="margin-bottom:10px">Quick Add from Library</div>
       <div id="quick-add-list"></div>
+
+      <!-- Listeners panel -->
+      <div class="listeners-section">
+        <div class="listeners-title">Listeners in this Jam</div>
+        <div class="listeners-avatars" id="listeners-avatars"></div>
+        <div class="listeners-hint">Bordered avatars have voted this round</div>
+      </div>
     </div>
+
     <div>
       <div class="section-header">
         <div class="section-title">Live Votes</div>
@@ -101,5 +154,91 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="../js/main.js"></script>
+<script>
+// ── Listeners panel ──────────────────────────────────────────────
+const AVATAR_COLORS = ['#1db954','#509BF5','#8D67AB','#E8115B','#FF6437','#4B917D'];
+
+function getListeners() {
+  // Use whoever is in the Jam session; fall back to defaults if no session started
+  const members = state.jamMembers && state.jamMembers.length > 1
+    ? state.jamMembers
+    : ['You', 'Alex', 'Jordan', 'Sam', 'Riley'];
+  return members.map((name, i) => ({
+    name,
+    color: AVATAR_COLORS[i % AVATAR_COLORS.length],
+    textColor: i === 0 ? '#000' : '#fff',
+  }));
+}
+
+// Tracks who has voted this round  { 'You': true, 'Alex': true, … }
+const votedThisRound = {};
+
+// Override renderVoteList from main.js to add progress bars + leading highlight
+window.renderVoteList = function() {
+  const el = document.getElementById('vote-list');
+  if (!el) return;
+  if (!state.voteSongs.length) {
+    el.innerHTML = '<div class="empty-state">No songs suggested yet.<br>Add songs to start voting!</div>';
+    return;
+  }
+  const sorted = [...state.voteSongs].sort((a,b) => (state.voteCounts[b.title]||0)-(state.voteCounts[a.title]||0));
+  const maxVotes = Math.max(...sorted.map(s => state.voteCounts[s.title]||0), 1);
+  const medals = ['🥇','🥈','🥉'];
+  el.innerHTML = sorted.map((s,i) => {
+    const count = state.voteCounts[s.title]||0;
+    const pct = Math.round((count / maxVotes) * 100);
+    const leading = i === 0 && count > 0;
+    const t = s.title.replace(/'/g,"\\'");
+    return `<div class="vote-card ${leading ? 'leading' : ''}">
+      <div class="rank-badge">${medals[i]||'#'+(i+1)}</div>
+      <div class="vote-info">
+        <div class="vote-title">${s.title}</div>
+        <div class="vote-artist">${s.artist}</div>
+      </div>
+      <div class="vote-controls">
+        <button class="vote-btn" onclick="castVote('${t}',-1)">👎</button>
+        <div class="vote-count">${count}</div>
+        <button class="vote-btn" onclick="castVote('${t}',1)">👍</button>
+      </div>
+      <div class="vote-bar-wrap"><div class="vote-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+};
+
+function renderListeners() {
+  const el = document.getElementById('listeners-avatars');
+  if (!el) return;
+  const listeners = getListeners();
+  el.innerHTML = listeners.map(l => `
+    <div class="l-avatar-wrap">
+      <div class="l-avatar ${votedThisRound[l.name] ? 'voted' : ''}"
+           style="background:${l.color};color:${l.textColor}">
+        ${l.name[0].toUpperCase()}
+      </div>
+      <span class="l-name">${l.name}</span>
+    </div>
+  `).join('') + `<span class="l-count">${listeners.length} listeners</span>`;
+}
+
+// Override castVote from main.js so can mark "You" as voted
+// Using window.castVote = avoids hoisting — function declarations would
+// get hoisted above the const capture, making _orig point to itself.
+const _origCastVote = window.castVote;
+window.castVote = function(title, delta) {
+  _origCastVote(title, delta);
+  votedThisRound['You'] = true;
+  renderListeners();
+};
+
+// Reset borders when a new voting round starts
+const _origStartVoting = window.startVoting;
+window.startVoting = function() {
+  Object.keys(votedThisRound).forEach(k => delete votedThisRound[k]);
+  renderListeners();
+  _origStartVoting();
+};
+
+document.addEventListener('DOMContentLoaded', renderListeners);
+</script>
 </body>
 </html>
